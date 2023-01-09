@@ -6,20 +6,21 @@
 //  Copyright © 2021 Paul Hudson. All rights reserved.
 //
 
+#if os(iOS)
+
 import AVFoundation
 import UIKit
 
-@available(macCatalyst 14.0, *)
 extension CodeScannerView {
-    
+
     public class ScannerViewController: UIViewController, UIImagePickerControllerDelegate, UINavigationControllerDelegate, AVCaptureMetadataOutputObjectsDelegate {
-        
+
         var parentView: CodeScannerView!
         var codesFound = Set<String>()
         var didFinishScanning = false
         var lastTime = Date(timeIntervalSince1970: 0)
         private let showViewfinder: Bool
-        
+
         private var isGalleryShowing: Bool = false {
             didSet {
                 // Update binding
@@ -39,21 +40,21 @@ extension CodeScannerView {
             self.showViewfinder = false
             super.init(coder: coder)
         }
-        
+
         func openGallery() {
             isGalleryShowing = true
             let imagePicker = UIImagePickerController()
             imagePicker.delegate = self
             present(imagePicker, animated: true, completion: nil)
         }
-        
+
         @objc func openGalleryFromButton(_ sender: UIButton) {
             openGallery()
         }
 
         public func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
             isGalleryShowing = false
-            
+
             if let qrcodeImg = info[.originalImage] as? UIImage {
                 let detector = CIDetector(ofType: CIDetectorTypeQRCode, context: nil, options: [CIDetectorAccuracy: CIDetectorAccuracyHigh])!
                 let ciImage = CIImage(image:qrcodeImg)!
@@ -77,7 +78,7 @@ extension CodeScannerView {
 
             dismiss(animated: true, completion: nil)
         }
-        
+
         public func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
             isGalleryShowing = false
             dismiss(animated: true, completion: nil)
@@ -125,9 +126,9 @@ extension CodeScannerView {
                 type: parentView.codeTypes.first ?? .qr
             ))
         }
-        
+
         #else
-        
+
         var captureSession: AVCaptureSession?
         var previewLayer: AVCaptureVideoPreviewLayer!
         let fallbackVideoCaptureDevice = AVCaptureDevice.default(for: .video)
@@ -141,7 +142,7 @@ extension CodeScannerView {
             imageView.translatesAutoresizingMaskIntoConstraints = false
             return imageView
         }()
-        
+
         private lazy var manualCaptureButton: UIButton = {
             let button = UIButton(type: .system)
             let image = UIImage(named: "capture", in: .module, with: nil)
@@ -189,12 +190,12 @@ extension CodeScannerView {
 
             setupSession()
         }
-      
+
         private func setupSession() {
             guard let captureSession = captureSession else {
                 return
             }
-            
+
             if previewLayer == nil {
                 previewLayer = AVCaptureVideoPreviewLayer(session: captureSession)
             }
@@ -229,7 +230,7 @@ extension CodeScannerView {
                 case .authorized:
                     self.setupCaptureDevice()
                     self.setupSession()
-                    
+
                 default:
                     break
             }
@@ -244,7 +245,7 @@ extension CodeScannerView {
                 completion?()
             }
         }
-      
+
         private func addOrientationDidChangeObserver() {
             NotificationCenter.default.addObserver(
                 self,
@@ -253,11 +254,11 @@ extension CodeScannerView {
                 object: nil
             )
         }
-      
+
         private func setBackgroundColor(_ color: UIColor = .black) {
             view.backgroundColor = color
         }
-      
+
         private func setupCaptureDevice() {
             captureSession = AVCaptureSession()
 
@@ -354,11 +355,11 @@ extension CodeScannerView {
             device.exposureMode = AVCaptureDevice.ExposureMode.continuousAutoExposure
             device.unlockForConfiguration()
         }
-        
+
         @objc func manualCapturePressed(_ sender: Any?) {
             self.readyManualCapture()
         }
-        
+
         func showManualCaptureButton(_ isManualCapture: Bool) {
             if manualCaptureButton.superview == nil {
                 view.addSubview(manualCaptureButton)
@@ -369,11 +370,11 @@ extension CodeScannerView {
                     view.safeAreaLayoutGuide.bottomAnchor.constraint(equalTo: manualCaptureButton.bottomAnchor, constant: 32)
                 ])
             }
-            
+
             view.bringSubviewToFront(manualCaptureButton)
             manualCaptureButton.isHidden = !isManualCapture
         }
-        
+
         func showManualSelectButton(_ isManualSelect: Bool) {
             if manualSelectButton.superview == nil {
                 view.addSubview(manualSelectButton)
@@ -384,12 +385,12 @@ extension CodeScannerView {
                     view.safeAreaLayoutGuide.bottomAnchor.constraint(equalTo: manualSelectButton.bottomAnchor, constant: 32)
                 ])
             }
-            
+
             view.bringSubviewToFront(manualSelectButton)
             manualSelectButton.isHidden = !isManualSelect
         }
         #endif
-        
+
         func updateViewController(isTorchOn: Bool, isGalleryPresented: Bool, isManualCapture: Bool, isManualSelect: Bool) {
             if let backCamera = AVCaptureDevice.default(for: AVMediaType.video),
                backCamera.hasTorch
@@ -398,23 +399,23 @@ extension CodeScannerView {
                 backCamera.torchMode = isTorchOn ? .on : .off
                 backCamera.unlockForConfiguration()
             }
-            
+
             if isGalleryPresented && !isGalleryShowing {
                 openGallery()
             }
-            
+
             #if !targetEnvironment(simulator)
             showManualCaptureButton(isManualCapture)
             showManualSelectButton(isManualSelect)
             #endif
         }
-        
+
         public func reset() {
             codesFound.removeAll()
             didFinishScanning = false
             lastTime = Date(timeIntervalSince1970: 0)
         }
-        
+
         public func readyManualCapture() {
             guard parentView.scanMode == .manual else { return }
             self.reset()
@@ -439,7 +440,7 @@ extension CodeScannerView {
                         found(result)
                         didFinishScanning = true
                     }
-                    
+
                 case .oncePerCode:
                     if !codesFound.contains(stringValue) {
                         codesFound.insert(stringValue)
@@ -457,7 +458,7 @@ extension CodeScannerView {
         func isPastScanInterval() -> Bool {
             Date().timeIntervalSince(lastTime) >= parentView.scanInterval
         }
-        
+
         func isWithinManualCaptureInterval() -> Bool {
             Date().timeIntervalSince(lastTime) <= 0.5
         }
@@ -475,6 +476,8 @@ extension CodeScannerView {
         func didFail(reason: ScanError) {
             parentView.completion(.failure(reason))
         }
-        
+
     }
 }
+
+#endif
